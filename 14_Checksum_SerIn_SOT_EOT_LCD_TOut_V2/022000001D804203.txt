@@ -1,0 +1,3 @@
+Test String 8 Bytes
+02 20 00 00 1D 80 42 03
+SOT 5x Data CS EOT
