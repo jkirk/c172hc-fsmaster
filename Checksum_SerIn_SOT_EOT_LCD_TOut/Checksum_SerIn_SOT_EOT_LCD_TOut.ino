@@ -1,11 +1,11 @@
 // Created by Upali Pathirana
-// Calculate Checksum based on:
-// https://forum.arduino.cc/t/calculating-check-sum/45883
-//
-// Output results to LCD
-// modified for LCD1602
-//Library version:1.1
-#include <LiquidCrystal_I2C.h>
+// https://forum.arduino.cc/t/calculating-check-sum/45883 
+// Method used in above: Checksum = (0x100 - sum of bytes)
+// abov result Checksum = 2's complement of sum of bytes
+// implemented here as Checksum = ((sum of data bytes) XOR 0xFF ) + 1)
+// Output results to LCD1602 via I2C Interface -  
+// Library version:1.1
+#include <LiquidCrystal_I2C.h> // 
 //LiquidCrystal_I2C lcd(0x27,20,4);
 LiquidCrystal_I2C lcd(0x27, 16, 2); // set the LCD address to 0x27 for a 16 chars and 2 line display
 
@@ -25,6 +25,8 @@ char dataString[16] = {0};
 String lcdStr;// String for LCD
 byte sum = 0;
 byte numBytes = 32;
+byte calculated_cksum = 0; // Made global in V2A 
+
 
 //Unomment following two lines when real Serial
 //byte receivedBytes[numBytes];   // an array to store the received data
@@ -52,7 +54,7 @@ void setup()
 
   // Remove Serial prints after debug
 
-  Serial.println("Checksum Test Serial Simulation");//
+  Serial.println("V2A Checksum Test Serial Simulation");//
   /*
     Serial.println("Please enter each Nibble in keyboard. Max 16");//
     Serial.println("Confirm with send");//
@@ -80,16 +82,16 @@ void loop()
     displayLcdLine1(); // Display "Data Received" Text
     lcd.setCursor(0, 1); // 2nd line
     displayRcvdBytesLcdV2();
-
     // Remove Serial after DEBUG
     displayRcvdBytes(); // Serial
     calcSum(); // Calculate sum
-    displayData();// serial
+    calculated_cksum = (sum ^ 0xFF)+1; // This is as same as calculated_cksum = -sum used in V2
+    displayData();// Send 
     newData = false;
   }
   // Display done
 
-  //timer without usung delay
+  //timer without using delay
   currentMillis = millis(); // check millis
   if (timeOut == true)
   {
@@ -110,7 +112,7 @@ void loop()
       lcd.print("S:");
       printHexByteLcd(sum); // display sum of bytes received = XOR
       lcd.print(" C:");
-      byte calculated_cksum = -sum; //
+     // byte calculated_cksum = -sum; // made global in V2A
       printHexByteLcd(calculated_cksum); // display calculated Checksum
       lcd.print(" R:");
       byte crcbyte = receivedBytes[numReceived - 2]; // display received Checksum
@@ -150,7 +152,7 @@ void lcsWaiting()
 {
   lcd.clear();        // clear display
   lcd.setCursor(0, 0); // Position Column 0 , Line 0
-  lcd.print("DATA Monitor V2");
+  lcd.print("DATA Monitor V2A");
   lcd.setCursor(0, 1); // Position Column 0 , Line
   lcd.print("Waiting....");//
 }
@@ -277,7 +279,7 @@ void displayRcvdBytesLcdV2()
 
 void calcSum()
 {
-  sum = 0xFF; //init as DP
+  sum = 0x00; //removed in V2A from 0xFF
   for (int i = 0; i < numReceived - 2; i++)
   {
     sum += receivedBytes[i]; // add all bytes in Array
@@ -302,7 +304,7 @@ void displayData()
   printHexByte(sum);
   Serial.println();
 
-  byte calculated_cksum = -sum; //
+  //byte calculated_cksum = -sum; // changed V2A now in loop for clarity
   Serial.print("Calculated checksum                              = ");
   printHexByte(calculated_cksum);
   Serial.println();
