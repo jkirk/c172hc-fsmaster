@@ -280,7 +280,10 @@ void displayRcvdBytesLcdV2()
 void calcSum()
 {
   sum = 0x00; //removed in V2A from 0xFF
-  for (int i = 0; i < numReceived - 2; i++)
+  // Calculate the sum excluding the first STX (0x02) byte.
+  // The last two bytes are the received checksum and ETX (0x03).
+  // Both are not used in the sum calculation.
+  for (int i = 1; i < numReceived - 2; i++)
   {
     sum += receivedBytes[i]; // add all bytes in Array
   }
