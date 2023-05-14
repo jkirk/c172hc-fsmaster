@@ -54,7 +54,7 @@ void setup()
 
   // Remove Serial prints after debug
 
-  Serial.println("V2A Checksum Test Serial Simulation");//
+  Serial.println("V2B Checksum Test Serial Simulation");//
   /*
     Serial.println("Please enter each Nibble in keyboard. Max 16");//
     Serial.println("Confirm with send");//
@@ -152,7 +152,7 @@ void lcsWaiting()
 {
   lcd.clear();        // clear display
   lcd.setCursor(0, 0); // Position Column 0 , Line 0
-  lcd.print("DATA Monitor V2A");
+  lcd.print("DATA Monitor V2B");
   lcd.setCursor(0, 1); // Position Column 0 , Line
   lcd.print("Waiting....");//
 }
