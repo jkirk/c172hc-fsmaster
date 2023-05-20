@@ -1,7 +1,8 @@
 // Created by Upali Pathirana
-// 2023.05.16
+// 2023.05.17
 // Test reliability of data transfer @9600 Baud
 // Check blocks received within time frame specified in waitRestart
+// Send 0x55 to Host to notify Ready to receive data
 // calculates Checksum according to 2's complement of sum of bytes (excl. SOT and EOT)
 // implemented here as Checksum = ((sum of data bytes) XOR 0xFF ) + 1)
 // Count number of blocks received.
@@ -15,8 +16,8 @@ LiquidCrystal_I2C lcd(0x27, 16, 2); // set the LCD address to 0x27 for a 16 char
 //========================================================
 // Update following after changes
 String mainPurpose = "Latency Analysis ";
-String currentVersion = "V1";
-String fileId = "File-ID: 14C "; // for LCD display
+String currentVersion = " V1A";
+String fileId = "File-ID: 14D"; // for LCD display
 unsigned long transferRate = 9600; // Baud Rate
 
 //========================================================
@@ -27,14 +28,15 @@ int ledState = LOW;
 bool clearLcd = false;
 unsigned long currentMillis ;
 unsigned long lastLcdMillis = 0;        // will store last time LCD was updated
-const long waitLcd = 10000;           // interval timeout LCD Disply Human read
-const long waitRestart = 10000; // Timeout after data entry completion
+
+const long waitRestart = 10000; // Timeout for data entry completion
+const long pauseDelay = 2000; //waiting time to allow reading results of analysis
 unsigned long lastRstMillis = 0; //
 bool timeOutLcd = false;
 bool timeOutSerial = false;
 bool timeOutRestart = false;
 unsigned long lastSerialMillis = 0; // will store last time Analysisn Serial out was executed
-const int waitSerial = 50; // delay for refreshing serial output (for DEBUG)
+
 //========================================================
 char dataString[16] = {0};
 String lcdStr;// String for LCD
@@ -46,19 +48,14 @@ byte sumPlusChksum = 0;
 byte errorFlag = 0; // Sum of received Bytes + Received Checksum
 int dataCounter = 0; //
 int errCounter = 0; //
+int startCode = 0x55; // Code to send to Host. Timer started to send data
 
-//Unomment following two lines when real Serial
-//byte receivedBytes[numBytes];   // an array to store the received data
-//bool newData = false;
-
-//Comment out following two lines when real Serial
-//bool newData = true; // flag rcvd byte so once when started (Debug)
 bool newData = false; // Will be set when Data received. See above for Debug
 byte receivedBytes[8] = {0x02, 0x20, 0x00, 0x00, 0x1D, 0x80, 0x42, 0x03}; // Sample Array of Bytes of received simulated
 //byte buf[8]; // Buffer array received msg
 //========================================================
-bool stxOk = false;
-bool etxOk = false;
+//bool stxOk = false;
+//bool etxOk = false;
 char startMarker = 0x02;// STX
 char endMarker = 0x03;// ETX
 byte numReceived = 0; // number of bytes received from ETX to STX
@@ -93,11 +90,12 @@ void setup()
 //========================================================
 //********************************************************
 void loop() {
-  digitalWrite(ledPin, LOW); // Busy
+
   currentMillis = millis();
   if (currentMillis - lastRstMillis >= waitRestart) {
     // save the last time here
     lastRstMillis = currentMillis;
+    digitalWrite(ledPin, HIGH); // Busy LED. data should not be sent when OM
     lcd.clear();
     Serial.print("dataCounter: ");
     Serial.println(dataCounter);
@@ -110,13 +108,15 @@ void loop() {
     lcd.setCursor(0, 1);
     lcd.print("Data Err: ");
     lcd.print(errCounter);
-
+    delay(pauseDelay); // waiting time to allow reading results of analysis
     dataCounter = 0;// next cycle
     errCounter = 0; // next cycle
-    delay(2000);
+
     lcd.clear();
+    digitalWrite(ledPin, LOW); // Busy LED OFF
     lcd.print("Ready");
-    digitalWrite(ledPin, HIGH); // ready for data
+
+    Serial.println(startCode); //Send code to Host
   }
   // continue if waitRestart not overrun
 
@@ -178,6 +178,7 @@ void recvWithEndMarker() {
 
 //---------------------------------------------------
 //Fn#02A
+
 void recvBytesWithStartEndMarkers() {
   // STX = 0x02 anfd ETX = 0x03 alredy set in Global variables
   static boolean recvInProgress = false; // Note Ststic. will be initialized once only
@@ -222,45 +223,14 @@ void recvBytesWithStartEndMarkers() {
 
 //----------------------------------------------------
 //Fn#03
+// enter with lcdStr = String to display on 1st line
 void displayLcdLine1() {
   lcd.clear();        // clear display
-  lcdStr = ("Data received");
   lcd.setCursor(0, 0);
   lcd.print(lcdStr);
 }
 //----------------------------------------------------
-//Fn#04A
-void displayRcvdBytesLcdV1() {
-  for (int i = 0; i < numBytes; i++)
-  {
-    printHexByteLcd(receivedBytes[i]);
-  }
-}
-//---------------------------------------------------------
-//Fn#04B
-void printHexByteLcd(byte x) {
-  if (x < 16)
-  {
-    lcd.print('0');
-  }
-  lcd.print(x, HEX);
-}
-//==========================================================
-//Fn#05
-// Display received bytes in HEX in LCD1602 on line specified before entry
-// Note: Starts background timer with millis
-// the duration is specified by variable interval in declarations
-void displayRcvdBytesLcdV2() {
-  sprintf(dataString, "%02X%02X%02X%02X%02X%02X%02X%02X",
-          receivedBytes[0], receivedBytes[1], receivedBytes[2], receivedBytes[3],
-          receivedBytes[4], receivedBytes[5], receivedBytes[6], receivedBytes[7]);
-  lcd.print(dataString);
-  //lastLcdMillis = millis(); // set previous to current millis
-  //timeOutLcd = true; //flag to start timer
-  //digitalWrite(ledPin, HIGH); // show that LCD Delay timer is active
-  // removed in V2C
-}
-//---------------------------------------------------------
+
 //Fn#06
 void calcSum() {
   sum = 0x00; //removed in V2A from 0xFF
@@ -272,17 +242,7 @@ void calcSum() {
     sum += receivedBytes[i]; // add all bytes in Array
   }
 }
-//---------------------------------------------------------
-//Fn#07
-void displayRcvdBytes() {
-  Serial.print("Received data bytes : ");
-  for (int i = 0; i < numReceived; i++)
-  {
-    printHexByte(receivedBytes[i]);
-    Serial.print("  ");
-  }
-  Serial.println();
-}
+
 //---------------------------------------------------------
 //
 //Fn#08
@@ -366,3 +326,54 @@ void verifyChecksum() {
   }
 }
 //====================================================
+//*******************UNUSED FUNCTIONS*********************
+/*
+  //Fn#04A
+  void displayRcvdBytesLcdV1() {
+  for (int i = 0; i < numBytes; i++)
+  {
+    printHexByteLcd(receivedBytes[i]);
+  }
+  }
+  //---------------------------------------------------------
+  //Fn#04B
+  void printHexByteLcd(byte x) {
+  if (x < 16)
+  {
+    lcd.print('0');
+  }
+  lcd.print(x, HEX);
+  }
+
+  //---------------------------------------------------------------
+
+  //Fn#05
+  // Display received bytes in HEX in LCD1602 on line specified before entry
+  // Note: Starts background timer with millis
+  // the duration is specified by variable interval in declarations
+  void displayRcvdBytesLcdV2() {
+  sprintf(dataString, "%02X%02X%02X%02X%02X%02X%02X%02X",
+          receivedBytes[0], receivedBytes[1], receivedBytes[2], receivedBytes[3],
+          receivedBytes[4], receivedBytes[5], receivedBytes[6], receivedBytes[7]);
+  lcd.print(dataString);
+  //lastLcdMillis = millis(); // set previous to current millis
+  //timeOutLcd = true; //flag to start timer
+  //digitalWrite(ledPin, HIGH); // show that LCD Delay timer is active
+  // removed in V2C
+  }
+
+  //---------------------------------------------------------
+
+  //Fn#07
+  void displayRcvdBytes() {
+  Serial.print("Received data bytes : ");
+  for (int i = 0; i < numReceived; i++)
+  {
+    printHexByte(receivedBytes[i]);
+    Serial.print("  ");
+  }
+  Serial.println();
+  }
+*/
+
+//==========================================================

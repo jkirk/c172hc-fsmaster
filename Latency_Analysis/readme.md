@@ -1,9 +1,9 @@
-2023.05.16
-Latency_Analysis_V1.ino
-Internal File.ID: 14C
-Test reliability of data transfer @9600 Baud
-Check blocks received within time frame specified in waitRestart set 10 sec.
-Calculates Checksum according to 2's complement of sum of bytes (excl. SOT and EOT)
-Implemented here as Checksum = ((sum of data bytes) XOR 0xFF ) + 1)
-Count number of blocks received.
-At the end of time frame, display number of blocks received with correct and wrong Checksum caused by latency
+
+Update 2023.05.18
+On-board LED is ON during display of Analysis.(BUSY)
+
+When ready to receive next batch of data, execute following:
+LED OFF, disply "Ready" on LCD and send  0x55 to Host
+
+Removed unused varables.
+Useful functions developed for previous versions which are not used are annexed at the end with /*   */
